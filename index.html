@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="robots" content="noindex, nofollow">
+
+    <title>検索</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/minisearch@7.2.0/dist/umd/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+    <script src="/assets/js/marked-custom.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/minisearch@7.2.0/dist/umd/index.min.js"></script>
+
+    <link rel="stylesheet" href="/assets/css/markdown.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/monokai-sublime.min.css">
+    <link rel="stylesheet" href="/assets/css/highlight.css">
+
+<style>
+body {
+    margin:0;
+}
+
+.head,
+.markdown-body {
+    margin: 12px;
+}
+
+.search-container {
+  position: relative;
+  width: 400px;
+}
+
+#searchBox {
+  width: 100%;
+  padding: 8px 12px;
+  box-sizing: border-box;
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ccc;
+  border-top: none;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1000;
+  display: none;
+}
+
+.search-item {
+  display: block;
+  padding: 8px 12px;
+  text-decoration: none;
+  color: #333;
+  border-bottom: 1px solid #eee;
+}
+
+.search-item:hover {
+  background: #f5f5f5;
+}
+
+.search-item:last-child {
+  border-bottom: none;
+}
+
+.search-title {
+  font-weight: bold;
+}
+
+.search-snippet {
+  font-size: 0.85em;
+  color: #666;
+  margin-top: 2px;
+}
+</style>
+</head>
+
+<body>
+    <div class="head">
+        <div class="search-container">
+            <input
+                type="text"
+                id="searchBox"
+                placeholder="検索..."
+                autocomplete="off"
+            />
+            <div id="searchResults" class="search-results"></div>
+        </div>
+    </div>
+
+    <div id="content" class="markdown-body"></div>
+</body>
+
+<script>
+async function readMD(path) {
+    const url = new URL(path, location.origin)
+    const res = await fetch(url.pathname)
+    if (!res.ok) {
+        throw new Error(`status: ${res.status}`)
+    }
+
+    return await res.text()
+}
+
+function viewDocument(text) {
+    const container = document.getElementById('content')
+
+    container.innerHTML = marked.parse(text)
+    container.querySelectorAll('pre code').forEach(block => {
+        hljs.highlightElement(block)
+    })
+}
+
+function show(filepath) {
+    console.log(filepath)
+    readMD(filepath)
+        .then(viewDocument)
+}
+
+// データ読み込み
+let miniSearch = null
+fetch("/assets/index.json")
+  .then(res => res.text())
+  .then(t => {
+    miniSearch = MiniSearch.loadJSON(t, {
+        fields: ['title', 'body'],
+        storeFields: ['title', 'body']
+    })
+  })
+
+// 要素取得
+const searchBox = document.getElementById("searchBox");
+const searchResults = document.getElementById("searchResults");
+
+// スニペット生成
+function createSnippet(text, keyword, length = 80) {
+  const index = text.toLowerCase().indexOf(keyword.toLowerCase());
+
+  if (index === -1) {
+    return text.slice(0, length) + "...";
+  }
+
+  const start = Math.max(0, index - 20);
+  const end = Math.min(text.length, index + keyword.length + 40);
+
+  return (start > 0 ? "..." : "") +
+         text.slice(start, end).replace(/\n/g, " ") +
+         (end < text.length ? "..." : "");
+}
+
+// 検索実行
+function performSearch(keyword) {
+  if (!miniSearch || !keyword.trim()) {
+    searchResults.style.display = "none";
+    searchResults.innerHTML = "";
+    return;
+  }
+
+  const results = miniSearch.search(keyword, {
+    prefix: true,
+    fuzzy: 0.2
+  }).slice(0, 10);
+
+  if (results.length === 0) {
+    searchResults.style.display = "none";
+    searchResults.innerHTML = "";
+    return;
+  }
+
+  searchResults.innerHTML = results.map((result) => {
+    const snippet = createSnippet(result.body, keyword);
+
+    return `
+      <a class="search-item" onclick="show('${result.id}')">
+        <div class="search-title">${escapeHtml(result.title)}</div>
+        <div class="search-snippet">${escapeHtml(snippet)}</div>
+      </a>
+    `;
+  }).join("");
+
+  searchResults.style.display = "block";
+}
+
+// HTML エスケープ
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[ch]));
+}
+
+// 入力イベント
+searchBox.addEventListener("input", (event) => {
+  performSearch(event.target.value);
+});
+
+// フォーカスが外れたら閉じる（少し遅延させてクリックを許可）
+searchBox.addEventListener("blur", () => {
+  setTimeout(() => {
+    searchResults.style.display = "none";
+  }, 200);
+});
+
+// フォーカス時に再表示
+searchBox.addEventListener("focus", () => {
+  if (searchResults.innerHTML.trim()) {
+    searchResults.style.display = "block";
+  }
+});
+</script>
+</html>
