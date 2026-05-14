@@ -11,4 +11,14 @@ class Handler(SimpleHTTPRequestHandler):
             path = path[len(REPOSITORY_NAME) + 1:]
         return super().translate_path(path)
 
-HTTPServer(("0.0.0.0", 7000), Handler).serve_forever()
+addr = ("0.0.0.0", 7000)
+
+server = HTTPServer(addr, Handler)
+
+try:
+    print(f"Server started.", addr)
+    server.serve_forever()
+except KeyboardInterrupt:
+    print("\nServer stopped.")
+finally:
+    server.server_close()
