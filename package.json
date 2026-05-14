@@ -1,0 +1,7 @@
+{
+    "name": "local-search",
+    "type": "module",
+    "dependencies": {
+        "minisearch": "^6.0.0"
+    }
+}

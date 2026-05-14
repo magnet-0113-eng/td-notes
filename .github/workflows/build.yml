@@ -1,0 +1,39 @@
+name: Build Search Index and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    permissions:
+      contents: write
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    - name: Setup Node
+      uses: actions/setup-node@v5
+      with:
+        node-version: 24
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Generate
+      run: node generate.js
+
+    - name: Push gh-pages branch
+      uses: peaceiris/actions-gh-pages@v4.1.0
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs
+        user_name: github-actions[bot]
+        user_email: 41898282+github-actions[bot]@users.noreply.github.com
