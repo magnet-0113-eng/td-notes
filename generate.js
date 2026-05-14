@@ -28,7 +28,7 @@ const files = getAllFiles(docsDir);
 let docs = files
   .filter((f) => f.endsWith(".md"))
   .map((f) => ({
-    id: path.relative("docs", f),
+    id: "td-notes/" + path.relative("docs", f),
     title: path.basename(f).replace(".md", ""),
     body: fs.readFileSync(f, "utf8"),
   }));
